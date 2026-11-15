@@ -1,189 +1,189 @@
 # Windows Steam Game on Mac
 
-在 Apple Silicon Mac 上，用**免费**的 [Sikarugir](https://github.com/Sikarugir-App/Sikarugir) 运行**只有 Windows 版**的 Steam 游戏。本仓库是一份实操记录，附带几个排错用的小脚本。
+**English** | [简体中文](README.zh-CN.md)
 
-> **English summary:** A hands-on guide (in Chinese) for running Windows-only Steam games on Apple Silicon Macs with the free Sikarugir wrapper (successor of Wineskin/Kegworks) and Apple's D3DMetal. Includes helper scripts to check your Mac and a game's requirements, fix Sikarugir's endless microphone prompt, and force-quit the Windows Steam client.
+Run **Windows-only** Steam games on an Apple Silicon Mac with the **free** [Sikarugir](https://github.com/Sikarugir-App/Sikarugir) wrapper (the successor of Wineskin / Kegworks) and Apple's D3DMetal. This repo is a hands-on record of a working setup, plus a few small helper scripts for troubleshooting.
 
 ---
 
-## 测试环境
+## Test environment
 
-| 项目 | 版本 |
+| Item | Version |
 |---|---|
-| 电脑 | MacBook Pro，Apple M5 Pro，24 GB 内存 |
-| 系统 | macOS 26.5.1 |
+| Computer | MacBook Pro, Apple M5 Pro, 24 GB RAM |
+| OS | macOS 26.5.1 |
 | Homebrew | 7.0.12 |
 | Sikarugir Creator | 1.0.2 |
-| Wrapper 模板 | Template 1.0.27 |
-| 引擎 | `WS12WineSikarugir11.0_1`（Wine 11.0） |
-| 图形转译 | D3DMetal |
-| 时间 | 2026 年 11 月 |
+| Wrapper template | Template 1.0.27 |
+| Engine | `WS12WineSikarugir11.0_1` (Wine 11.0) |
+| Graphics translation | D3DMetal |
+| Date | November 2026 |
 
-**结果**
+**Results**
 
-| 软件 | 状态 |
+| Software | Status |
 |---|---|
-| Windows 版 Steam 客户端 | ✅ 能登录、浏览商店、下载游戏 |
-| Rip It! Card Collector（再拆亿包！，AppID 5088440） | ✅ 能正常游玩（D3DMetal） |
+| Steam client (Windows version) | ✅ Logs in, browses the store, downloads games |
+| Rip It! Card Collector (AppID 5088440) | ✅ Fully playable (D3DMetal) |
 
 ---
 
-## 先判断：你的 Mac 和游戏合不合适
+## First: is your Mac (and the game) a good fit?
 
 ```bash
-./scripts/check-mac.sh            # 芯片、内存、系统、Rosetta、Homebrew、Sikarugir 状态
-./scripts/check-game.sh 5088440   # 游戏支持哪些平台、Windows 配置要求、Steam Deck 评级
+./scripts/check-mac.sh            # chip, RAM, macOS, Rosetta, Homebrew, Sikarugir status
+./scripts/check-game.sh 5088440   # supported platforms, Windows requirements, Steam Deck rating
 ```
 
-- 游戏页面写着只支持 Windows，Mac 版 Steam 就装不了它，需要用转译层（Wine）。
-- **Steam Deck 评级是个很好的参考**：Steam Deck 用的 Proton 和 Sikarugir 底层都是 Wine。评级是“已验证 / 可玩”的游戏，在 Mac 上成功的概率更高（但不保证）。
-- 有反作弊（如 EAC、BattlEye、Vanguard）的网游基本跑不了，单机游戏最合适。
-- Steam 支持购买 14 天内、游戏时长不到 2 小时的退款，跑不起来也不会白花钱。
+- If the store page lists Windows only, the Mac version of Steam can't install the game. You need a translation layer (Wine).
+- **The Steam Deck rating is a good hint.** Steam Deck's Proton and Sikarugir are both built on Wine. Games rated "Verified" or "Playable" are more likely to work on a Mac (not guaranteed).
+- Online games with anti-cheat (EAC, BattlEye, Vanguard, etc.) usually won't run. Single-player games are the best fit.
+- Steam refunds purchases within 14 days and under 2 hours of playtime, so you don't lose money if a game doesn't run.
 
 ---
 
-## 安装步骤
+## Installation
 
-### 1. 安装 Homebrew 和 Rosetta 2
+### 1. Install Homebrew and Rosetta 2
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-需要输入开机密码，中途还要按一次回车。装完按提示把 brew 加入 PATH：
+It asks for your login password and for Return once. When it finishes, add brew to your PATH as instructed:
 
 ```bash
 echo 'eval "$(/opt/homebrew/bin/brew shellenv zsh)"' >> ~/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv zsh)"
 ```
 
-Apple Silicon 还需要 Rosetta 2（`check-mac.sh` 会告诉你装没装）：
+Apple Silicon also needs Rosetta 2 (`check-mac.sh` tells you whether it's installed):
 
 ```bash
 /usr/sbin/softwareupdate --install-rosetta --agree-to-license
 ```
 
-### 2. 安装 Sikarugir
+### 2. Install Sikarugir
 
 ```bash
 brew trust Sikarugir-App/sikarugir
 brew install --cask Sikarugir-App/sikarugir/sikarugir
 ```
 
-> ⚠️ **只从 GitHub 或 Homebrew 安装。** 官方 README 提醒：`sikarugir.com` **不是**官方网站。
+> ⚠️ **Install only from GitHub or Homebrew.** The official README warns that `sikarugir.com` is **not** the official site.
 
-### 3. 创建一个装 Steam 的 wrapper
+### 3. Create a wrapper for Steam
 
-打开“应用程序”里的 **Sikarugir Creator**：
+Open **Sikarugir Creator** from Applications:
 
-1. 点 **Download Template x.x.x**，下载最新模板。
-2. 点 **Change** 选引擎，选列表最上面的 **`WS12WineSikarugir11.0_1`**（最新的那个）。
-   - `WS11` 开头是旧系列，`32Bit` 是 32 位，都不选。
-   - 如果 Steam 登录界面黑屏或卡住，可以换 `WS12WineCX24.0.7_7`（基于 CrossOver）再建一个试试。
-3. 点 **Create**，名字填 `steam`，保存到默认的 `Sikarugir` 文件夹（`~/Applications/Sikarugir/`）。
+1. Click **Download Template x.x.x** to get the latest template.
+2. Click **Change** and pick the engine at the top of the list, **`WS12WineSikarugir11.0_1`** (the newest one).
+   - Engines starting with `WS11` are the older series, and `32Bit` ones are 32-bit. Skip both.
+   - If the Steam login screen is black or hangs, try creating another wrapper with `WS12WineCX24.0.7_7` (based on CrossOver).
+3. Click **Create**, name it `steam`, and save it to the default `Sikarugir` folder (`~/Applications/Sikarugir/`).
 
-### 4. 在 wrapper 里安装 Windows 版 Steam
+### 4. Install the Windows Steam client in the wrapper
 
-先从 [Steam 官网](https://store.steampowered.com/about/)下载 **Windows 版**安装程序 `SteamSetup.exe`。这是安装程序，**不用解压，也不要双击**。
+Download the **Windows** installer `SteamSetup.exe` from the [Steam website](https://store.steampowered.com/about/). It's an installer: **don't unzip it, and don't double-click it**.
 
-在弹出的 **Configure** 窗口里：
+In the **Configure** window that opens:
 
-1. 勾选 **Direct3D to Metal translation layer - (D3DMetal)**。
-2. 点 **Install Software**，选 `SteamSetup.exe`。
-3. 安装向导里语言先选 **English**（原因见下面的排错）。路径保持默认 `C:\Program Files (x86)\Steam`，不要改。
-4. 确认 **Windows app** 一栏是 `"C:\Program Files (x86)\Steam\steam.exe"`，不是的话点 **Browse** 手动选。
+1. Check **Direct3D to Metal translation layer - (D3DMetal)**.
+2. Click **Install Software** and select `SteamSetup.exe`.
+3. In the setup wizard, pick **English** as the language (see Troubleshooting for why). Keep the default path `C:\Program Files (x86)\Steam`.
+4. Make sure the **Windows app** field is `"C:\Program Files (x86)\Steam\steam.exe"`. If not, click **Browse** and select it.
 
-### 5. 启动
+### 5. Launch
 
-**在“访达 → 应用程序 → Sikarugir”里双击 `steam.app`**，不要用 Configure 里的 Test Run（原因见下面的排错）。第一次启动会先自动更新，然后登录、购买、下载游戏即可。
+**Double-click `steam.app` in Finder → Applications → Sikarugir.** Don't use Test Run in Configure (see Troubleshooting). On first launch Steam updates itself; then log in, buy and download your game.
 
-> 你的 Mac 上可能同时装着 **Mac 版 Steam**（`/Applications/Steam.app`），它装不了只有 Windows 版的游戏。别点错，用 Sikarugir 里那个。
-
----
-
-## 排错
-
-### 创建 wrapper 时报错 “wswine.bundle couldn't be removed…”
-
-可以忽略。这只是清理临时文件失败，wrapper 本身已经建好了。在 `~/Applications/Sikarugir/` 里能看到 `steam.app` 就没问题。
-
-### 安装 Steam 时提示 “No new executables found! Maybe the installer failed…”
-
-提示弹早了：安装向导还开着，Sikarugir 就以为安装已经结束，去检查了。点 OK，继续走完 Steam 安装向导就行。
-
-### 安装语言列表里中文显示成 □□□□
-
-Wine 里还没有中文字体，第一列最上面两个 `□□□□` 分别是简体中文和繁體中文。建议**先选 English**。之后在 Configure 里点 **Winetricks**，安装 `cjkfonts`，再到 Steam 的 Settings → Interface 里改成中文。
-
-### “Configure would like to access the Microphone” 无限弹窗
-
-已知问题：[Sikarugir-App/Sikarugir#292](https://github.com/Sikarugir-App/Sikarugir/issues/292)。
-
-- 原因：wrapper 里的 `Configure.app` 签名不完整，macOS 记不住你的选择。Steam 每启动一个子进程，Wine 就会初始化一次音频，于是又弹一次。
-- 只有从 Configure 里启动（Test Run、Install Software、winecfg）时才会出现。**正常双击 wrapper 启动不会。**
-- 修复：先关掉 Steam 和 Configure，再运行：
-
-```bash
-./scripts/fix-configure-mic-prompt.sh                      # 处理 ~/Applications/Sikarugir 下所有 wrapper
-./scripts/fix-configure-mic-prompt.sh ~/Applications/Sikarugir/steam.app   # 只处理一个
-```
-
-脚本会先备份 `Configure.app`，再做 ad-hoc 签名。wrapper 本身（`steam.app`）没法这样签名，因为它的主程序 `launcher` 是符号链接，不过它本来也不受这个问题影响。
-
-### Steam 关不掉，“一关就自动打开”
-
-Steam 并没有自动重启：
-
-- 点窗口的红色 × 只是**把窗口藏起来**，Steam 继续在后台运行（在 Windows 上是缩到托盘）。
-- 在程序坞里退出 `steam.app`，只关掉 Sikarugir 的外壳，里面的 Windows 版 Steam 还在跑。
-
-**正确的关法：在 Steam 窗口左上角点 “Steam” 菜单 → “Exit”。**
-
-如果菜单点不了，或者退出后还有 Wine 进程残留，可以强制关闭：
-
-```bash
-./scripts/quit-steam.sh            # 默认 ~/Applications/Sikarugir/steam.app，会先问你确认
-./scripts/quit-steam.sh --force    # 不确认，直接关闭
-```
-
-注意：Steam 的命令行退出方式（`-shutdown`、`steam://exit`）在 Wine 里实测都没用，所以脚本是直接结束这个 wrapper 里的所有 Wine 进程。下次启动时 Steam 会先自检一下文件，这是正常的。不要在游戏存档或下载过程中强制关闭。
+> Your Mac may also have the **Mac version of Steam** (`/Applications/Steam.app`). It can't install Windows-only games. Make sure you open the one in the Sikarugir folder.
 
 ---
 
-## 其他方案对比
+## Troubleshooting
 
-| 方案 | 费用 | 状态（2026-11） | 说明 |
+### "wswine.bundle couldn't be removed…" when creating the wrapper
+
+Safe to ignore. Only the cleanup of a temporary file failed; the wrapper itself was created. If `steam.app` is in `~/Applications/Sikarugir/`, you're fine.
+
+### "No new executables found! Maybe the installer failed…" while installing Steam
+
+The check fires too early: Sikarugir thinks the installer has finished while the setup wizard is still open. Click OK and finish the Steam setup wizard.
+
+### Chinese / Japanese / Korean text shows as □□□□
+
+Wine has no CJK fonts yet. For example, the two `□□□□` entries at the top of the installer's language list are Simplified and Traditional Chinese. Pick **English** first. Then click **Winetricks** in Configure, install `cjkfonts`, and change the language in Steam under Settings → Interface.
+
+### Endless "Configure would like to access the Microphone" prompt
+
+Known issue: [Sikarugir-App/Sikarugir#292](https://github.com/Sikarugir-App/Sikarugir/issues/292).
+
+- Cause: the wrapper's `Configure.app` has an incomplete code signature, so macOS can't remember your answer. Each time Steam starts a child process, Wine initializes audio again, and the prompt comes back.
+- It only happens when Steam is started from Configure (Test Run, Install Software, winecfg). **Double-clicking the wrapper doesn't trigger it.**
+- Fix: quit Steam and Configure, then run:
+
+```bash
+./scripts/fix-configure-mic-prompt.sh                      # every wrapper in ~/Applications/Sikarugir
+./scripts/fix-configure-mic-prompt.sh ~/Applications/Sikarugir/steam.app   # just one
+```
+
+The script backs up `Configure.app`, then ad-hoc signs it. The wrapper itself (`steam.app`) can't be signed this way because its main executable `launcher` is a symlink, but it isn't affected by this issue anyway.
+
+### Steam won't quit and "reopens by itself"
+
+Steam isn't actually restarting:
+
+- Clicking the red × only **hides the window**. Steam keeps running in the background (on Windows it would go to the tray).
+- Quitting `steam.app` from the Dock only closes the Sikarugir shell. The Windows Steam client inside keeps running.
+
+**To quit properly, click the "Steam" menu at the top left of the Steam window → "Exit".**
+
+If the menu doesn't respond, or Wine processes are left over after exiting, force-quit:
+
+```bash
+./scripts/quit-steam.sh            # defaults to ~/Applications/Sikarugir/steam.app; asks first
+./scripts/quit-steam.sh --force    # no confirmation
+```
+
+Note: Steam's command-line exit options (`-shutdown`, `steam://exit`) did nothing under Wine in testing, so the script kills every Wine process in that wrapper. Steam verifies its files on the next launch; that's normal. Don't force-quit while a game is saving or a download is in progress.
+
+---
+
+## Alternatives
+
+| Option | Cost | Status (Nov 2026) | Notes |
 |---|---|---|---|
-| **Sikarugir** | 免费 | ✅ 活跃维护 | 本指南用的方案。Wineskin / Kegworks 的后继者，需要自己动手 |
-| CrossOver | 付费，有 14 天试用 | ✅ 商业维护 | 最省事，Steam 兼容性通常最好 |
-| Parallels + Windows 11 ARM | 订阅费 + Windows 授权 | ✅ | 兼容性稳，但资源占用大 |
-| Whisky | 免费 | ❌ 2025 年已归档 | 停止维护，不推荐 |
-| Mythic | 免费 | ⚠️ 测试版 | 主要支持 Epic，Steam 支持还没做完 |
-| UTM | 免费 | ✅ | Windows 虚拟机没有 3D 加速，跑不了 3D 游戏 |
+| **Sikarugir** | Free | ✅ Actively maintained | Used in this guide. Successor of Wineskin / Kegworks; more hands-on |
+| CrossOver | Paid, 14-day trial | ✅ Commercially maintained | Easiest; usually the best Steam compatibility |
+| Parallels + Windows 11 ARM | Subscription + Windows license | ✅ | Solid compatibility, but heavy on resources |
+| Whisky | Free | ❌ Archived in 2025 | No longer maintained; not recommended |
+| Mythic | Free | ⚠️ Beta | Mainly targets Epic; Steam support is incomplete |
+| UTM | Free | ✅ | Windows VMs have no 3D acceleration, so 3D games won't run |
 
-**关于“开源”：** Sikarugir 不是完全开源。根据它的 README，只有 `Configure.app`（由 Wineskin 修改而来）是 LGPL-2.1；新版 Creator 和启动器不在 LGPL 范围内。D3DMetal 是苹果的闭源组件，许可证不允许商用移植，但个人玩游戏没问题。
+**About "open source":** Sikarugir isn't fully open source. According to its README, only `Configure.app` (derived from Wineskin) is LGPL-2.1; the new Creator and launcher are not covered by the LGPL. D3DMetal is a closed-source Apple component whose license doesn't allow commercial ports, but playing games on your own Mac is fine.
 
 ---
 
-## 脚本一览
+## Scripts
 
-| 脚本 | 作用 |
+| Script | What it does |
 |---|---|
-| [`scripts/check-mac.sh`](scripts/check-mac.sh) | 查看芯片、内存、系统版本、磁盘空间、Rosetta / Homebrew / Sikarugir 是否已安装 |
-| [`scripts/check-game.sh`](scripts/check-game.sh) | 根据 Steam AppID 查询游戏的平台支持、Windows 配置要求和 Steam Deck 评级 |
-| [`scripts/fix-configure-mic-prompt.sh`](scripts/fix-configure-mic-prompt.sh) | 备份并重新签名 wrapper 里的 `Configure.app`，解决麦克风无限弹窗 |
-| [`scripts/quit-steam.sh`](scripts/quit-steam.sh) | 正常退出不管用时，强制关闭 wrapper 里的 Windows 版 Steam |
+| [`scripts/check-mac.sh`](scripts/check-mac.sh) | Shows chip, RAM, macOS version, free disk space, and whether Rosetta / Homebrew / Sikarugir are installed |
+| [`scripts/check-game.sh`](scripts/check-game.sh) | Looks up a game's platforms, Windows requirements and Steam Deck rating by Steam AppID |
+| [`scripts/fix-configure-mic-prompt.sh`](scripts/fix-configure-mic-prompt.sh) | Backs up and re-signs the wrapper's `Configure.app` to stop the endless microphone prompt |
+| [`scripts/quit-steam.sh`](scripts/quit-steam.sh) | Force-quits the Windows Steam client inside a wrapper when a normal exit doesn't work |
 
-所有脚本只读写你自己的 wrapper，不修改系统设置。
+The scripts only read and write your own wrappers. They don't change system settings.
 
 ---
 
-## 致谢
+## Credits
 
-- [Gcenx](https://github.com/Gcenx) 和 [Sikarugir-App](https://github.com/Sikarugir-App) 团队维护 Sikarugir 和 Wine 引擎
-- [Wine](https://www.winehq.org/) 项目
-- Valve 的 [Proton](https://github.com/ValveSoftware/Proton) 和 Steam Deck 兼容性评级
+- [Gcenx](https://github.com/Gcenx) and the [Sikarugir-App](https://github.com/Sikarugir-App) team for Sikarugir and its Wine engines
+- The [Wine](https://www.winehq.org/) project
+- Valve's [Proton](https://github.com/ValveSoftware/Proton) and the Steam Deck compatibility ratings
 
-## 许可证
+## License
 
-本仓库的文档和脚本以 [MIT](LICENSE) 许可发布。Sikarugir、Wine、Steam 和 D3DMetal 各自遵循其原有许可。本仓库不包含它们的任何文件。
+The docs and scripts in this repo are released under the [MIT](LICENSE) license. Sikarugir, Wine, Steam and D3DMetal are under their own licenses. This repo contains none of their files.

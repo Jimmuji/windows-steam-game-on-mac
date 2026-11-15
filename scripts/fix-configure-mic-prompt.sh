@@ -1,13 +1,13 @@
 #!/bin/bash
-# 修复 Sikarugir 的 “Configure would like to access the Microphone” 无限弹窗
-# （https://github.com/Sikarugir-App/Sikarugir/issues/292）。
+# Fix Sikarugir's endless "Configure would like to access the Microphone" prompt
+# (https://github.com/Sikarugir-App/Sikarugir/issues/292).
 #
-# 原因：wrapper 里的 Configure.app 签名不完整，macOS 无法记住授权结果。
-# 做法：备份 Configure.app，然后对它做 ad-hoc 签名。只改动 wrapper 里的 Configure.app。
+# Cause: the wrapper's Configure.app has an incomplete code signature, so macOS can't remember your answer.
+# Fix: back up Configure.app, then ad-hoc sign it. Only the wrapper's Configure.app is changed.
 #
-# 用法:
-#   ./scripts/fix-configure-mic-prompt.sh                 # 处理 ~/Applications/Sikarugir 下所有 wrapper
-#   ./scripts/fix-configure-mic-prompt.sh path/to/x.app   # 只处理指定的 wrapper（可以写多个）
+# Usage:
+#   ./scripts/fix-configure-mic-prompt.sh                 # every wrapper in ~/Applications/Sikarugir
+#   ./scripts/fix-configure-mic-prompt.sh path/to/x.app   # only the given wrapper(s)
 set -euo pipefail
 
 if [ $# -gt 0 ]; then
@@ -18,7 +18,7 @@ else
 fi
 
 if [ ${#wrappers[@]} -eq 0 ]; then
-  echo "在 ~/Applications/Sikarugir 里没找到 wrapper。可以直接把 wrapper 路径作为参数传进来。" >&2
+  echo "No wrappers found in ~/Applications/Sikarugir. You can pass a wrapper path as an argument." >&2
   exit 1
 fi
 
@@ -28,31 +28,31 @@ for w in "${wrappers[@]}"; do
   c="$w/Contents/Configure.app"
 
   if [ ! -d "$c" ]; then
-    echo "跳过 $name：里面没有 Configure.app，不像是 Sikarugir wrapper"
+    echo "Skipping $name: no Configure.app inside, doesn't look like a Sikarugir wrapper"
     continue
   fi
-  # 不用 grep -q：它提前退出时，配合 pipefail 可能把“在运行”误判成“没运行”
+  # Not grep -q: it exits early, and with pipefail that can turn "running" into "not running"
   if [ "$(ps -axww -o args= | grep -F -- "$w/Contents/" | grep -vc grep)" -gt 0 ]; then
-    echo "跳过 $name：它正在运行。请先在 Steam 里点 Steam → Exit，并关掉 Configure 窗口后再试。"
+    echo "Skipping $name: it's running. In Steam, click Steam → Exit, close the Configure window, then try again."
     continue
   fi
   if codesign --verify --deep --strict "$c" 2>/dev/null; then
-    echo "✔ $name：Configure.app 签名已经有效，无需处理"
+    echo "✔ $name: Configure.app already has a valid signature, nothing to do"
     continue
   fi
 
   backup="${w%.app}-Configure.app.bak"
   if [ ! -e "$backup" ]; then
     cp -cR "$c" "$backup" 2>/dev/null || cp -R "$c" "$backup"
-    echo "  已备份到 $backup"
+    echo "  Backed up to $backup"
   fi
 
   xattr -dr com.apple.quarantine "$c" 2>/dev/null || true
   codesign --force --deep -s - "$c"
   if codesign --verify --deep --strict "$c"; then
-    echo "✔ $name：Configure.app 已重新签名。下次弹窗时选一次 Allow 或 Don't Allow，系统就会记住了。"
+    echo "✔ $name: Configure.app re-signed. Next time the prompt appears, choose Allow or Don't Allow once and macOS will remember it."
   else
-    echo "✘ $name：签名后校验失败，可以用备份恢复：rm -rf \"$c\" && mv \"$backup\" \"$c\"" >&2
+    echo "✘ $name: verification failed after signing. Restore the backup with: rm -rf \"$c\" && mv \"$backup\" \"$c\"" >&2
     exit 1
   fi
 done
