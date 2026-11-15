@@ -24,7 +24,7 @@
 | 软件 | 状态 |
 |---|---|
 | Windows 版 Steam 客户端 | ✅ 能登录、浏览商店、下载游戏 |
-| Rip It! Card Collector（再拆亿包！，AppID 5088440） | ✅ 已安装 / ⏳ 游戏本身运行情况待验证 |
+| Rip It! Card Collector（再拆亿包！，AppID 5088440） | ✅ 能正常游玩（D3DMetal） |
 
 ---
 
